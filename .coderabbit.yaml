@@ -1,4 +1,10 @@
 language: "en-US"
 reviews:
-  profile: "chill"
-  poem: false
+  profile: "assertive"
+  tools:
+    checkov:
+      enabled: true
+    tflint:
+      enabled: true
+    eslint:
+      enabled: true
